@@ -1,0 +1,40 @@
+Bootstrap: docker
+From: python:3.10-slim-bookworm
+
+%labels
+    Author $(whoami)
+    Version "1.0.0"
+    Description "Singularity container with copier"
+
+%post
+    echo "Installing prerequisites..."
+    apt update -y && apt install -y --no-install-recommends \
+      curl \
+      ca-certificates \
+      git \
+    && rm -rf /var/lib/apt/lists/*
+
+    echo "Installing uv and copier..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    export PATH=$HOME/.local/bin:$PATH
+
+    uv venv /opt/venv
+    . /opt/venv/bin/activate
+    uv tool install copier
+    pip install --upgrade pip
+    pip install copier
+
+%environment
+    export PATH="$HOME/.local/bin:/opt/venv/bin:$PATH"
+    export PYTHONNOUSERSITE=1
+
+%runscript
+    exec "$@"
+
+%help
+    This container provides a ready-to-use environment for Copier.
+    To use it, run:
+      singularity run copier.sif copier <template_url_or_path>
+    Example:
+      singularity run copier.sif copier gh:copier/copier-template
