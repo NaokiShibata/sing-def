@@ -1,0 +1,45 @@
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+
+%labels
+  Author "Your Name <your.email.@example.com>"
+  Version "1.0.0"
+  Description "Singularity container for run_dbcan 5.1.2"
+
+%post
+  apt-get update -y
+  apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    hmmer \
+    tar \
+    build-essential \
+    ca-certificates
+  rm -rf /var/lib/apt/lists/*
+
+  wget -O /tmp/diamond.tar.gz \
+    https://github.com/bbuchfink/diamond/releases/download/v2.1.13/diamond-linux64.tar.gz
+  tar -xzf /tmp/diamond.tar.gz -C /usr/local/bin
+  rm -f /tmp/diamond.tar.gz
+
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="/root/.local/bin:$PATH"
+  uv venv /opt/venv
+  uv pip install --python /opt/venv/bin/python "dbcan==5.1.2"
+
+%environment
+  export PATH="/usr/local/bin:/root/.local/bin:/opt/venv/bin:$PATH"
+  export PYTHONNOUSERSITE=1
+
+%runscript
+  exec "$@"
+
+%help
+  Minimal container for run_dbcan 5.1.2
+  Includes:
+    - Python 3.12
+    - dbcan 5.1.2 (run_dbcan)
+    - DIAMOND 2.1.13
+    - HMMER
+  Usage:
+    apptainer exec run_dbcan-5.1.2.sif run_dbcan <options>
