@@ -1,0 +1,66 @@
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+
+%labels
+  Author "Your Name <your.email@example.com>"
+  Version "0.0.1"
+  Description "Lightweight MkDocs container using uv + Python 3.12 slim"
+
+%environment
+  # Path to venv and uv
+  PATH=/opt/venv/bin:/root/.local/bin:$PATH
+  UV_NO_CACHE=1
+  PIP_DISABLE_PIP_VERSION_CHECK=1
+  PYTHONDONTWRITEBYTECODE=1
+
+%post
+  set -eux
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive
+  apt-get install -y --no-install-recommends \
+    libglib2.0-0 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
+    libharfbuzz0b libfontconfig1 libfreetype6 libffi8 shared-mime-info \
+    fonts-dejavu-core fonts-liberation2 fonts-noto-cjk \
+    curl
+
+  rm -rf /var/lib/apt/lists/*
+
+  # Install uv
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH=/root/.local/bin:$PATH
+  export UV_LINK_MODE=copy
+
+  # Create venv and install MkDocs with minimum requirement
+  uv venv /opt/venv
+  . /opt/venv/bin/activate
+
+  # Main theme
+  uv pip install --no-cache \
+    mkdocs==1.* \
+    mkdocs-material==9.* \
+    pymdown-extensions==10.* \
+    mkdocs-section-index==0.* \
+    nbconvert \
+    mkdocs-simple-hooks \
+    mkdocs-mermaid2-plugin==1.* \
+    mkdocs-glightbox==0.* \
+    mkdocs-caption \
+    mkdocs-table-reader-plugin \
+    mkdocs-macros-plugin \
+    mkdocs-with-pdf
+
+  # remove cache
+  rm -rf /root/.cache || true
+
+%runscript
+  exec tini -g -- mkdocs "$@"
+
+%help
+  Lightweight MkDocs container (uv).
+  Examples:
+    # Build
+    apptainer exec -B $PWD:/work mkdocs-uv.sif mkdocs build -f /work/mkdocs.yml -d /work/site
+    # Serve (http://127.0.0.1:8000)
+    apptainer exec -B $PWD:/work mkdocs-uv.sif mkdocs serve -f /work/mkdocs.yml -a 0.0.0.0:8000
+  mkdocs-material:
+    https://squidfunk.github.io/mkdocs-material/
