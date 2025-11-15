@@ -1,0 +1,95 @@
+Bootstrap: docker
+From: debian:bookworm-slim
+
+%labels
+    Author "Your name"
+    Version "qiime2-amplicon-2025.10"
+    Description "QIIME2 amplicon 2025.10 on debian bookworm slim with micromamba"
+
+%environment
+    # Locale
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+    # micromamba root
+    export MAMBA_ROOT_PREFIX=/opt/conda
+
+    # QIIME2 environment
+    export QIIME2_ENV_NAME=qiime2-amplicon-2025.10
+    export QIIME2_ENV_PREFIX=${MAMBA_ROOT_PREFIX}/envs/${QIIME2_ENV_NAME}
+
+    # PATH
+    export PATH=${QIIME2_ENV_PREFIX}/bin:${MAMBA_ROOT_PREFIX}/bin:/usr/local/bin:${PATH}
+
+    # QIIME2
+    export MPLBACKEND=Agg
+
+    # CA bundle (Runtime)
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+    export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+%post
+    set -eux
+
+    # noninteractive
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        bzip2 \
+        bash \
+        locales \
+        tini \
+        openssl
+
+    # Locale
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+    locale-gen || true
+
+    # CA certificates
+    update-ca-certificates || true
+
+    # Clear apt cache
+    rm -rf /var/lib/apt/lists/*
+
+    # micromamba
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    mkdir -p "${MAMBA_ROOT_PREFIX}"
+
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
+        | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
+    chmod +x /usr/local/bin/micromamba
+
+    # micromamba config (channels & ssl_verify)
+    cat > /root/.mambarc <<EOF
+channels:
+  - https://packages.qiime2.org/qiime2/2025.10/amplicon/released
+  - bioconda
+  - conda-forge
+ssl_verify: /etc/ssl/certs/ca-certificates.crt
+EOF
+
+    # QIIME2 env
+    export QIIME2_ENV_NAME=qiime2-amplicon-2025.10
+    export QIIME2_ENV_PREFIX=${MAMBA_ROOT_PREFIX}/envs/${QIIME2_ENV_NAME}
+
+    # CA to libmamba / curl
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+    export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+    micromamba create -y \
+        -p "${QIIME2_ENV_PREFIX}" \
+        --file https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/2025.10/amplicon/released/qiime2-amplicon-ubuntu-latest-conda.yml
+
+    micromamba clean -a -y || true
+
+%runscript
+    exec micromamba run -p "${QIIME2_ENV_PREFIX}" "$@"
+
+%help
+    USAGE:
+        ./container/singularity.qiime2-amplicon-2025.10.sif qiime <option>
