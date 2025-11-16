@@ -4,7 +4,7 @@ From: debian:bookworm-slim
 %labels
     Author "Your name"
     Version "qiime2-amplicon-2025.10"
-    Description "QIIME2 amplicon 2025.10 on debian bookworm slim with micromamba"
+    Description "QIIME2 amplicon 2025.10 +α on debian bookworm slim with micromamba"
 
 %environment
     # Locale
@@ -43,7 +43,13 @@ From: debian:bookworm-slim
         bash \
         locales \
         tini \
-        openssl
+        openssl \
+        unzip \
+        wget \
+        libpcre3 \
+        parallel-fastq-dump \
+        aria2 \
+        pigz
 
     # Locale
     echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
@@ -54,6 +60,12 @@ From: debian:bookworm-slim
 
     # Clear apt cache
     rm -rf /var/lib/apt/lists/*
+
+    # Install seqfu
+    wget https://github.com/telatin/seqfu2/releases/download/v1.22.3/SeqFu-v1.22.3-Linux-x86_64.zip \
+        -O /tmp/SeqFu-v1.22.3-Linux-x86_64.zip
+    unzip /tmp/SeqFu-v1.22.3-Linux-x86_64.zip -d /usr/local
+    rm -f /tmp/SeqFu-v1.22.3-Linux-x86_64.zip
 
     # micromamba
     export MAMBA_ROOT_PREFIX=/opt/conda
@@ -84,12 +96,11 @@ EOF
     micromamba create -y \
         -p "${QIIME2_ENV_PREFIX}" \
         --file https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/2025.10/amplicon/released/qiime2-amplicon-ubuntu-latest-conda.yml
+    micromamba run -p "${QIIME2_ENV_PREFIX}" python -m pip install --no-deps empress
+    micromamba run -p "${QIIME2_ENV_PREFIX}" qiime dev refresh-cache || true
+
 
     micromamba clean -a -y || true
 
 %runscript
     exec micromamba run -p "${QIIME2_ENV_PREFIX}" "$@"
-
-%help
-    USAGE:
-        ./container/singularity.qiime2-amplicon-2025.10.sif qiime <option>
