@@ -1,0 +1,38 @@
+Bootstrap: docker
+From: python:3.13.5-slim
+
+%labels
+  Author "Your name"
+  Version "0.0.1"
+  Description "Plot dada2 error model stats from output qiime2 tsv"
+
+%environment
+  # Locale settings
+  export LC_ALL=C.UTF-8
+  export LANG=C.UTF-8
+  # Add venv to PATH
+  export PATH="/opt/venv/bin:$PATH"
+
+%post
+  set -eux
+
+  # Only certificates for HTTPS
+  apt-get update
+  apt-get install -y --no-install-recommends ca-certificates
+
+  # Create virtual environment
+  python -m venv /opt/venv
+  . /opt/venv/bin/activate
+
+  # Install Python packages
+  pip install --no-cache-dir --upgrade pip
+  pip install --no-cache-dir \
+    typer altair pandas
+
+  # Clean caches and apt lists
+  rm -rf /root/.cache/pip || true
+  apt-get autoremove -y
+  rm -rf /var/lib/apt/lists/*
+
+%runscript
+  exec "$@"
